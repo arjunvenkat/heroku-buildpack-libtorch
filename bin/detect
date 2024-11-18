@@ -1,0 +1,4 @@
+# bin/detect
+#!/bin/bash
+echo "LibTorch"
+exit 0
