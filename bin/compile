@@ -1,6 +1,8 @@
 #!/bin/bash
 BUILD_DIR=$1
 CACHE_DIR=$2
+ENV_DIR=$3
+
 echo "-----> Installing LibTorch"
 LIBTORCH_URL="https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcpu.zip"
 LIBTORCH_DIR="$BUILD_DIR/vendor/libtorch"
@@ -15,9 +17,49 @@ curl -L -o libtorch.zip $LIBTORCH_URL
 unzip libtorch.zip
 rm libtorch.zip
 
-# Set environment variables
+# Move contents up one directory level since unzip creates a libtorch subdirectory
+mv libtorch/* .
+rmdir libtorch
+
+# Set environment variables for both build time and runtime
+export TORCH_HOME="$LIBTORCH_DIR"
+export LD_LIBRARY_PATH="$LIBTORCH_DIR/lib:$LD_LIBRARY_PATH"
+export TORCH_INSTALL_PREFIX="$LIBTORCH_DIR"
+export TORCH_LIBRARIES="$LIBTORCH_DIR/lib"
+export TORCH_INCLUDE_DIRS="$LIBTORCH_DIR/include"
+export TORCH_CXX11_ABI=1
+
+# Create .profile.d script for runtime environment variables
 mkdir -p $BUILD_DIR/.profile.d
-echo "export TORCH_HOME=$LIBTORCH_DIR" >> $BUILD_DIR/.profile.d/libtorch.sh
-echo "export LD_LIBRARY_PATH=$LIBTORCH_DIR/lib:\$LD_LIBRARY_PATH" >> $BUILD_DIR/.profile.d/libtorch.sh
+cat << EOF > $BUILD_DIR/.profile.d/libtorch.sh
+export TORCH_HOME="\$HOME/vendor/libtorch"
+export LD_LIBRARY_PATH="\$HOME/vendor/libtorch/lib:\$LD_LIBRARY_PATH"
+export TORCH_INSTALL_PREFIX="\$HOME/vendor/libtorch"
+export TORCH_LIBRARIES="\$HOME/vendor/libtorch/lib"
+export TORCH_INCLUDE_DIRS="\$HOME/vendor/libtorch/include"
+export TORCH_CXX11_ABI=1
+EOF
+
+# Set up pkg-config
+mkdir -p $BUILD_DIR/vendor/pkgconfig
+cat << EOF > $BUILD_DIR/vendor/pkgconfig/torch.pc
+prefix=$LIBTORCH_DIR
+exec_prefix=\${prefix}
+includedir=\${prefix}/include
+libdir=\${prefix}/lib
+
+Name: libtorch
+Description: Torch C++ Library
+Version: 2.1.0
+Requires:
+Libs: -L\${libdir} -ltorch -ltorch_cpu
+Cflags: -I\${includedir}
+EOF
+
+export PKG_CONFIG_PATH="$BUILD_DIR/vendor/pkgconfig:$PKG_CONFIG_PATH"
+
+# Configure torch-rb build environment
+export TORCH_RB_BUILD_ARGS="--with-torch-dir=$LIBTORCH_DIR"
+export MAKE="make -j$(nproc)"
 
 echo "-----> LibTorch installation completed"
