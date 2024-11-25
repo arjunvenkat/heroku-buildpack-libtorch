@@ -1,48 +1,57 @@
 #!/bin/bash
+set -e  # Exit on error
+
 BUILD_DIR=$1
 CACHE_DIR=$2
 ENV_DIR=$3
 
+VENDOR_DIR="$BUILD_DIR/vendor"
+LIBTORCH_DIR="$VENDOR_DIR/libtorch"
+PROFILE_DIR="$BUILD_DIR/.profile.d"
+
 echo "-----> Installing LibTorch"
 LIBTORCH_URL="https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcpu.zip"
-LIBTORCH_DIR="$BUILD_DIR/vendor/libtorch"
 
-# Create directory if it doesn't exist
+# Create directories
 mkdir -p $LIBTORCH_DIR
+mkdir -p $PROFILE_DIR
 
-# Download and extract zip file
+# Download and extract LibTorch
 echo "Downloading LibTorch..."
-cd $LIBTORCH_DIR
-curl -L -o libtorch.zip $LIBTORCH_URL
-unzip libtorch.zip
-rm libtorch.zip
+curl -L $LIBTORCH_URL -o /tmp/libtorch.zip
+unzip -q /tmp/libtorch.zip -d /tmp
+mv /tmp/libtorch/* $LIBTORCH_DIR/
+rm -rf /tmp/libtorch /tmp/libtorch.zip
 
-# Move contents up one directory level since unzip creates a libtorch subdirectory
-mv libtorch/* .
-rmdir libtorch
-
-# Set environment variables for both build time and runtime
+# Create build-time environment variable file
+cat << EOF > $BUILD_DIR/export
 export TORCH_HOME="$LIBTORCH_DIR"
-export LD_LIBRARY_PATH="$LIBTORCH_DIR/lib:$LD_LIBRARY_PATH"
 export TORCH_INSTALL_PREFIX="$LIBTORCH_DIR"
 export TORCH_LIBRARIES="$LIBTORCH_DIR/lib"
 export TORCH_INCLUDE_DIRS="$LIBTORCH_DIR/include"
 export TORCH_CXX11_ABI=1
+export LD_LIBRARY_PATH="$LIBTORCH_DIR/lib:\$LD_LIBRARY_PATH"
+export TORCH_RB_BUILD_ARGS="--with-torch-dir=$LIBTORCH_DIR"
+export LIBRARY_PATH="$LIBTORCH_DIR/lib:\$LIBRARY_PATH"
+export CPATH="$LIBTORCH_DIR/include:\$CPATH"
+EOF
 
-# Create .profile.d script for runtime environment variables
-mkdir -p $BUILD_DIR/.profile.d
-cat << EOF > $BUILD_DIR/.profile.d/libtorch.sh
+# Source the environment variables for the current build
+source $BUILD_DIR/export
+
+# Create runtime environment variable file
+cat << EOF > $PROFILE_DIR/libtorch.sh
 export TORCH_HOME="\$HOME/vendor/libtorch"
-export LD_LIBRARY_PATH="\$HOME/vendor/libtorch/lib:\$LD_LIBRARY_PATH"
 export TORCH_INSTALL_PREFIX="\$HOME/vendor/libtorch"
 export TORCH_LIBRARIES="\$HOME/vendor/libtorch/lib"
 export TORCH_INCLUDE_DIRS="\$HOME/vendor/libtorch/include"
 export TORCH_CXX11_ABI=1
+export LD_LIBRARY_PATH="\$HOME/vendor/libtorch/lib:\$LD_LIBRARY_PATH"
 EOF
 
-# Set up pkg-config
-mkdir -p $BUILD_DIR/vendor/pkgconfig
-cat << EOF > $BUILD_DIR/vendor/pkgconfig/torch.pc
+# Create pkg-config file
+mkdir -p $VENDOR_DIR/pkgconfig
+cat << EOF > $VENDOR_DIR/pkgconfig/torch.pc
 prefix=$LIBTORCH_DIR
 exec_prefix=\${prefix}
 includedir=\${prefix}/include
@@ -56,10 +65,15 @@ Libs: -L\${libdir} -ltorch -ltorch_cpu
 Cflags: -I\${includedir}
 EOF
 
-export PKG_CONFIG_PATH="$BUILD_DIR/vendor/pkgconfig:$PKG_CONFIG_PATH"
-
-# Configure torch-rb build environment
-export TORCH_RB_BUILD_ARGS="--with-torch-dir=$LIBTORCH_DIR"
-export MAKE="make -j$(nproc)"
+export PKG_CONFIG_PATH="$VENDOR_DIR/pkgconfig:$PKG_CONFIG_PATH"
 
 echo "-----> LibTorch installation completed"
+
+# Verify the installation
+if [ -f "$LIBTORCH_DIR/lib/libtorch.so" ]; then
+    echo "-----> LibTorch files successfully installed"
+    ls -l $LIBTORCH_DIR/lib/libtorch.so
+else
+    echo "-----> ERROR: LibTorch installation failed"
+    exit 1
+fi
