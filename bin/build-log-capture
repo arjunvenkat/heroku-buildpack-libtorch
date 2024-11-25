@@ -1,0 +1,28 @@
+#!/bin/bash
+set -e
+
+# Trap any build failures
+trap 'capture_build_logs' ERR
+
+capture_build_logs() {
+  echo "Build failed. Capturing mkmf.log files..."
+  
+  # Find and display all mkmf.log files
+  LOGS=$(find /tmp/build_* -name "mkmf.log" 2>/dev/null)
+  
+  if [ -n "$LOGS" ]; then
+    for log in $LOGS; do
+      echo "=== Contents of $log ==="
+      cat "$log"
+      echo "=== End of $log ==="
+    done
+  else
+    echo "No mkmf.log files found"
+  fi
+  
+  # Exit with the original error code
+  exit 1
+}
+
+# Your original build command
+exec "$@"
