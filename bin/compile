@@ -1,16 +1,23 @@
-# bin/compile
 #!/bin/bash
-
 BUILD_DIR=$1
 CACHE_DIR=$2
-
 echo "-----> Installing LibTorch"
 LIBTORCH_URL="https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcpu.zip"
 LIBTORCH_DIR="$BUILD_DIR/vendor/libtorch"
 
+# Create directory if it doesn't exist
 mkdir -p $LIBTORCH_DIR
-curl -L $LIBTORCH_URL | tar xz -C $LIBTORCH_DIR
+
+# Download and extract zip file
+echo "Downloading LibTorch..."
+cd $LIBTORCH_DIR
+curl -L -o libtorch.zip $LIBTORCH_URL
+unzip libtorch.zip
+rm libtorch.zip
 
 # Set environment variables
+mkdir -p $BUILD_DIR/.profile.d
 echo "export TORCH_HOME=$LIBTORCH_DIR" >> $BUILD_DIR/.profile.d/libtorch.sh
 echo "export LD_LIBRARY_PATH=$LIBTORCH_DIR/lib:\$LD_LIBRARY_PATH" >> $BUILD_DIR/.profile.d/libtorch.sh
+
+echo "-----> LibTorch installation completed"
