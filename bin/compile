@@ -48,6 +48,7 @@ export TORCH_LIBRARIES="\$HOME/vendor/libtorch/lib"
 export TORCH_INCLUDE_DIRS="\$HOME/vendor/libtorch/include"
 export TORCH_CXX11_ABI=1
 export LD_LIBRARY_PATH="\$HOME/vendor/libtorch/lib:\$LD_LIBRARY_PATH"
+export BUNDLE_BUILD__TORCH_RB="--with-torch-dir=\$HOME/vendor/libtorch"
 EOF
 
 # Create pkg-config file
