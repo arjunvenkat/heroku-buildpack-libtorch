@@ -34,6 +34,7 @@ export LD_LIBRARY_PATH="$LIBTORCH_DIR/lib:\$LD_LIBRARY_PATH"
 export TORCH_RB_BUILD_ARGS="--with-torch-dir=$LIBTORCH_DIR"
 export LIBRARY_PATH="$LIBTORCH_DIR/lib:\$LIBRARY_PATH"
 export CPATH="$LIBTORCH_DIR/include:\$CPATH"
+export BUNDLE_BUILD__TORCH_RB="--with-torch-dir=$BUILD_DIR/vendor/libtorch"
 EOF
 
 # Source the environment variables for the current build
